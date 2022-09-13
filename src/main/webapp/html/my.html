@@ -4,8 +4,315 @@
     <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
     <link href="/css/my.css" rel="stylesheet">
 </head>
-<body>
+<body onload="getList(0)">
 <h1>RPG admin panel</h1>
+<label for="count1">Count per page:</label>
+<select id ="count1" onchange="getList(0)">
+    <option value="3">3</option>
+    <option value="5">5</option>
+    <option value="10">10</option>
+    <option value="20">20</option>
+</select>
 
+<table id="table1" >
+    <tr> <th>#</th>
+        <th>Name</th>
+        <th>Title</th>
+        <th>Race</th>
+        <th>Profession</th>
+        <th>Level</th>
+        <th>Birthday</th>
+        <th>Banned</th>
+        <th>Edit</th>
+        <th>Delete</th>
+
+    </tr>
+</table>
+<div id="paging_buttons">Pages: </div>
+
+<hr>
+<h2>Create new account:</h2>
+<label for="input_new_name">Name: </label>
+<input type="text" id="input_new_name" name="name" required size="12" maxlength="12">
+<br>
+
+<label for="input_new_title">Title: </label>
+<input type="text" id="input_new_title" name="title" required size="30" maxlength="30">
+<br>
+
+<label for="input_new_race">Race</label>
+     <select id="input_new_race" name='race'>
+         <option value='HUMAN'>HUMAN</option>
+         <option value='DWARF'>DWARF</option>
+         <option value='ELF'>ELF</option>
+         <option value='GIANT'>GIANT</option>
+         <option value='ORC'>ORC</option>
+         <option value='TROLL'>TROLL</option>
+         <option value='HOBBIT'>HOBBIT</option>
+         </select>
+<br>
+
+<label for="input_new_profession">Profession</label>
+    <select id="input_new_profession" name='profession'>
+        <option value='WARRIOR'>WARRIOR</option>
+        <option value='ROGUE'>ROGUE</option>
+        <option value='SORCERER'>SORCERER</option>
+        <option value='CLERIC'>CLERIC</option>
+        <option value='PALADIN'>PALADIN</option>
+        <option value='NAZGUL'>NAZGUL</option>
+        <option value='WARLOCK'>WARLOCK</option>
+        <option value='WARLOCK'>DRUID</option>
+        </select>
+<br>
+
+<label for="input_new_level">Level: </label>
+<input type="number" id="input_new_level" name="level" min="0" max="100">
+<br>
+
+<label for="input_new_birthday">Birthday: </label>
+<input type="date" id="input_new_birthday" name="birthday" min="2000-01-01" max="3000-12-31">
+<br>
+
+<label for="input_new_banned">Banned: </label>
+    <select id="input_new_banned" name='banned'>
+        <option value='true'>true</option>
+        <option value='false'>false</option>
+        </select>
+<br><br>
+
+<span>
+    <button type="submit" onclick="createAcc()">Save</button>
+</span>
+ <script>
+    function getList(page_number) {
+        $("tr:has(td)").remove();
+        let url = "/rest/players?";
+        let totalCount = getCount();
+        let countPerPage = $("#count1").val();
+        if (countPerPage == null){
+            countPerPage = 3;
+        }
+
+        url = url.concat("pageSize=").concat(countPerPage);
+
+        if(page_number == null){
+            page_number = 0;
+        }
+      url =  url.concat("&pageNumber=").concat(page_number);
+
+
+        $.get(url, function (response) {
+            $.each(response, function (i,item) {
+            $('<tr>').html("<td>"
+                + item.id + "</td><td>"
+                + item.name + "</td><td>"
+                + item.title + "</td><td>"
+                + item.race + "</td><td>"
+                + item.profession + "</td><td>"
+                + item.level + "</td><td>"
+                + new Date(item.birthday).toLocaleDateString() + "</td><td>"
+                + item.banned + "</td><td>"
+                + "<button id='button_edit" + item.id + "'  + onclick='editAcc("+ item.id +")'>"
+                    + "<img src='/img/edit.png'>"
+                + "</button>" + "</td><td>"
+                + "<button id='button_delete" + item.id + "' + onclick='deleteAcc("+ item.id +")'>"
+                + "<img src='/img/delete.png'>"
+                + "</button>" + "</td>"
+            ).appendTo("#table1");
+        });
+    });
+
+        let pagesCount = Math.ceil(totalCount/countPerPage);
+        $("button.pgn-bnt-style").remove();
+        for (let i = 0; i < pagesCount; i++) {
+            let button_tag = "<button>" + (i + 1) + "</button>";
+            let btn = $(button_tag)
+                .attr('id',"paging_button" + i)
+                .attr('onclick', "getList("+ i +")")
+                .addClass('pgn-bnt-style');
+            $('#paging_buttons').append(btn);
+        }
+
+        let identifier = "#paging_button" + page_number;
+        $(identifier).css('color', "red");
+
+        console.log("pagesCount " + pagesCount);
+    }
+function getCount(){
+    let url = "/rest/players/count";
+    let res = 0;
+    $.ajax({
+        url: url,
+        async: false,
+        success: function (result){
+        res = parseInt(result);
+        }
+    })
+    console.log(res)
+    return res;
+}
+function deleteAcc(id){
+    let url ="/rest/players/" + id;
+    $.ajax({
+        url: url,
+        type: 'DELETE',
+        success: function (){
+            getList(getCurrentPage());
+        }
+    })
+}
+function getCurrentPage(){
+        let currentPage = 1;
+        $('button:parent(div)').each(function (){
+            if( $(this).css('color') == 'rgb(255,0,0)'){
+                currentPage = $(this).text();
+            }
+        });
+    return parseInt(currentPage) -1;
+}
+function editAcc(id){
+        let identifierEdit = "#button_edit" + id;
+        let identifierDelete = "#button_delete" + id;
+        $(identifierDelete).remove();
+
+        let saveImagePng = "<img src ='/img/save.png'>";
+        $(identifierEdit).html(saveImagePng);
+        let current_tr_element = $(identifierEdit).parent().parent();
+        let children = current_tr_element.children();
+
+        let td_name = children[1];
+        td_name.innerHTML = "<input id='input_name" + id+ "'type='text' value='" + td_name.innerHTML + "'>";
+
+        let td_title = children[2];
+        td_title.innerHTML = "<input id='input_title" + id+"'type='text' value='" + td_title.innerHTML + "'>";
+
+        let td_race = children[3];
+        let race_id = "#select_race" + id;
+        let race_current_value = td_race.innerHTML;
+        td_race.innerHTML = getDropDownRaceHtml(id);
+        $(race_id).val(race_current_value).change();
+
+        let td_profession = children[4];
+        let profession_id = "#select_profession" + id;
+        let profession_current_value = td_profession.innerHTML;
+        td_profession.innerHTML = getDropDownProfessionHtml(id);
+        $(profession_id).val(profession_current_value).change();
+
+        let td_banned = children[7];
+        let banned_id = "#select_banned" + id;
+        let banned_current_value = td_banned.innerHTML;
+        td_banned.innerHTML = getDropDownBannedHtml(id);
+        $(banned_id).val(banned_current_value).change();
+
+        let property_save_tag = "saveAcc(" + id + ")";
+        $(identifierEdit).attr('onClick',property_save_tag);
+}
+function saveAcc(id) {
+    let value_name = $("#input_name" + id).val();
+    let value_title = $("#input_title" + id).val();
+    let value_race = $("#select_race" + id).val();
+    let value_profession = $("#select_profession" + id).val();
+    let value_banned = $("#select_banned" + id).val();
+
+    let url = "/rest/players/" + id;
+    $.ajax({
+        url: url,
+        type: 'POST',
+        dataType: 'json',
+        contentType: 'application/json;charset = UTF-8',
+        async: false,
+        data: JSON.stringify({
+            "name": value_name,
+            "title": value_title,
+            "race": value_race,
+            "profession": value_profession,
+            "banned": value_banned,
+        }),
+        success: function () {
+            getList(getCurrentPage());
+        }
+    });
+}
+function getDropDownRaceHtml(id){
+        let race_id = "select_race" + id;
+        return "<label for='race'></<label>"
+        + "<select id=" + race_id + " name='race'>"
+        + "<option value='HUMAN'>HUMAN</option>"
+        + "<option value='DWARF'>DWARF</option>"
+        + "<option value='ELF'>ELF</option>"
+        + "<option value='GIANT'>GIANT</option>"
+        + "<option value='ORC'>ORC</option>"
+        + "<option value='TROLL'>TROLL</option>"
+        + "<option value='HOBBIT'>HOBBIT</option>"
+        + "</select";
+}
+    function getDropDownProfessionHtml(id){
+        let profession_id = "select_profession" + id;
+        return "<label for='profession'></<label>"
+            + "<select id=" + profession_id + " name='profession'>"
+            + "<option value='WARRIOR'>WARRIOR</option>"
+            + "<option value='ROGUE'>ROGUE</option>"
+            + "<option value='SORCERER'>SORCERER</option>"
+            + "<option value='CLERIC'>CLERIC</option>"
+            + "<option value='PALADIN'>PALADIN</option>"
+            + "<option value='NAZGUL'>NAZGUL</option>"
+            + "<option value='WARLOCK'>WARLOCK</option>"
+            + "<option value='WARLOCK'>DRUID</option>"
+            + "</select";
+    }
+    function  getDropDownBannedHtml(id){
+        let banned_id = "select_banned" + id;
+        return "<label for='banned'></<label>"
+            + "<select id=" + banned_id + " name='banned'>"
+            + "<option value='true'>true</option>"
+            + "<option value='false'>false</option>"
+            + "</select";
+    }
+    function createAcc() {
+        let value_name = $("#input_new_name").val();
+        let value_title = $("#input_new_title").val();
+        let value_race = $("#input_new_race").val();
+        let value_profession = $("#input_new_profession").val();
+        let value_level = $("#input_new_level").val();
+        let value_birthday = $("#input_new_birthday").val();
+        let value_banned = $("#input_new_banned").val();
+
+        console.log(value_name);
+        console.log(value_title);
+        console.log(value_race);
+        console.log(value_profession);
+        console.log(value_level);
+        console.log(value_birthday);
+        console.log(value_banned);
+
+        let url = "/rest/players/";
+        $.ajax({
+            url: url,
+            type: 'POST',
+            dataType: 'json',
+            contentType: 'application/json;charset = UTF-8',
+            async: false,
+            data: JSON.stringify({
+                "name": value_name,
+                "title": value_title,
+                "race": value_race,
+                "profession": value_profession,
+                "level": value_level,
+                "birthday": new Date(value_birthday).getTime(),
+                "banned": value_banned
+            }),
+            success: function () {
+               $("#input_new_name").val("");
+               $("#input_new_title").val("");
+               $("#input_new_race").val("");
+               $("#input_new_profession").val("");
+               $("#input_new_level").val("");
+               $("#input_new_birthday").val("");
+               $("#input_new_banned").val("");
+                getList(getCurrentPage());
+            }
+        });
+    }
+</script>
 </body>
 </html>
